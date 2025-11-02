@@ -176,6 +176,73 @@ To retrain models, use the Jupyter notebook at `notebooks/lstm_model.ipynb`:
 - Trains LSTM (32 units, 0.1 dropout, early stopping)
 - Saves models to `models/` directory
 
+## Document Retrieval (Experimental)
+
+The `notebooks/doc_retrieval.ipynb` notebook implements a PDF document retrieval system using ColBERT v2.0 for semantic search:
+
+### Pipeline Overview
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐     ┌──────────┐
+│  PDF File   │────>│ Text Extract │────>│  Chunking   │────>│  ColBERT │
+│             │     │   (PyMuPDF)  │     │  (overlap)  │     │  Indexer │
+└─────────────┘     └──────────────┘     └─────────────┘     └──────────┘
+                                                                     │
+                                                                     v
+                                                          ┌──────────────────┐
+                                                          │ Indexed Vectors  │
+                                                          │   (searchable)   │
+                                                          └──────────────────┘
+```
+
+### Components
+
+**1. PDF Text Extraction**
+- Uses PyMuPDF (fitz) to extract text from PDF files
+- Cleans extracted text by normalizing whitespace
+- Handles multi-page documents
+
+**2. Text Chunking**
+- Splits documents into overlapping chunks (default: 512 words)
+- Overlap of 128 words between chunks to preserve context
+- Each chunk stored with metadata (chunk_id, source, preview)
+
+**3. ColBERT v2.0 Indexing**
+- Uses `colbert-ir/colbertv2.0` checkpoint
+- Configuration:
+  - Document max length: 512 tokens
+  - Query max length: 128 tokens
+  - Embedding dimension: 256
+  - Similarity metric: cosine
+  - Compression: 2-bit quantization
+- GPU acceleration when available (CUDA)
+
+**4. Semantic Search**
+- Late interaction mechanism for efficient retrieval
+- Returns top-k relevant passages with scores
+- Results include passage ID, rank, and relevance score
+
+### Usage Example
+
+```python
+# Extract and index a PDF
+pdf_file = "document.pdf"
+index_name, metadata = embed_pdf_with_colbert(pdf_file)
+
+# Search the indexed document
+query = "What are the key findings?"
+results = search_pdf(query, index_name, k=5)
+
+# Results contain ranked passages with relevance scores
+for result in results:
+    print(f"Rank {result['rank']}: Score {result['score']}")
+```
+
+### Dependencies
+```bash
+pip install pymupdf colbert-ai torch
+```
+
 ## API Endpoints
 
 **GET /graphs**
